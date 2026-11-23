@@ -1,50 +1,36 @@
 # 3D Resume · 三维交互式个人简历
 
-一个基于 **Vue 3 + Three.js（TresJS）** 的 3D 交互式个人简历网站。首页以实时渲染的 3D 角色为视觉中心，结合个人介绍、工作经历、项目经验和专业技能，呈现更有记忆点的个人作品集。
+一个基于 Vue 3、Three.js 和 TresJS 的滚动式 3D 个人简历。人物场景固定在页面背景中，向下滚动时，人物会跟随章节改变位置、朝向和景别；简历与作品内容以独立的 HTML 页面层呈现。
 
-灵感来自「AI 时代个人介绍不该只是一份 PDF」的想法，用更有记忆点的方式展示自己。
+视觉参考来自 [sen-3d-resume](https://github.com/dayinji/sen-3d-resume)：借鉴固定 3D 场景与滚动叙事的结构，并按本项目的页面视频重新设计布局与配色。
 
-## 功能特性
+## 功能
 
-- **定制 3D 角色**：使用 Three.js 几何体组合建模，包含短发、头顶墨镜、双手点赞、背包、T 恤、短裤和运动鞋
-- **交互式简历**：关于我、经历、项目和技能四个板块可即时切换
-- **3D 场景交互**：角色缓慢转向指针，拖动场景可旋转视角
-- **响应式布局**：桌面端双栏展示，移动端切换为角色在前、简介在后的纵向布局
-- **GitHub Pages 部署**：已配置 `/Resume/` 子路径，可由仓库工作流自动构建发布
-
-## 技术栈
-
-| 分类 | 技术 |
-| --- | --- |
-| 框架 | Vue 3（`<script setup>`）+ Vite |
-| 3D | Three.js + TresJS（声明式 Vue 组件）+ @tresjs/cientos（OrbitControls） |
-| 交互 | OrbitControls、requestAnimationFrame 角色动画、pointer 事件 |
+- 使用 `public/models/limeng.glb` 渲染个人 3D 形象；滚动章节驱动人物变换，鼠标位置带动人物轻微转向
+- 五个章节：动机、个人介绍、履历、作品和联系方式
+- 桌面与窄屏自适应排版，导航可平滑跳转到对应章节
+- GitHub Pages 部署路径配置为 `/Resume/`
 
 ## 本地运行
 
 ```bash
 npm install
-npm run dev     # http://localhost:5173
+npm run dev
 ```
 
 ## 构建
 
 ```bash
-npm run build   # 输出到 dist/
-npm run preview # 本地预览构建产物
+npm run build
+npm run preview
 ```
 
 ## 目录结构
 
-```
-src/
-├── App.vue                  # 全局样式与入口
-├── main.js
-└── components/
-    ├── Resume3D.vue         # 3D 场景、作品集面板与响应式样式
-    └── createAvatar.js      # 程序化角色模型
+```text
+public/models/limeng.glb      # 提供的 3D 人物模型（已缩小贴图）
+src/App.vue                   # 应用入口
+src/components/Resume3D.vue  # 3D 场景、滚动章节与响应式样式
 ```
 
-## License
-
-MIT
+模型贴图从 4K 缩至 2K，以减小页面下载体积。模型未包含相机动画，因此页面使用滚动位置驱动人物的平移、缩放和朝向。
