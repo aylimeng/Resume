@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import * as THREE from 'three'
 import { TresCanvas } from '@tresjs/core'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 
 const sections = [
   { id: 'about', label: '动机', en: 'THE STORY' },
@@ -111,6 +112,9 @@ function animateAvatar() {
 
 function loadAvatar() {
   const loader = new GLTFLoader()
+  const dracoLoader = new DRACOLoader()
+  dracoLoader.setDecoderPath(`${import.meta.env.BASE_URL}draco/`)
+  loader.setDRACOLoader(dracoLoader)
   const modelUrl = `${import.meta.env.BASE_URL}models/limeng.glb`
   loader.load(
     modelUrl,
