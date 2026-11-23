@@ -178,18 +178,6 @@ onBeforeUnmount(() => {
   })
 })
 
-const skills = ['Vue 3', 'React', 'Three.js', 'TypeScript', 'Node.js', '微信小程序', 'AI Coding']
-const experiences = [
-  { period: '2023 — 至今', role: '独立开发者', company: '自主项目', note: '探索 AI 辅助开发，持续把创意打磨成能落地的产品。' },
-  { period: '2018 — 2023', role: '前端工程师', company: '北京海狸先生网络科技', note: '负责洗衣服务平台、小程序与移动端体验。' },
-  { period: '2016 — 2018', role: '前端工程师', company: '格物致诚（北京）信息技术', note: '参与企业级 Web 产品和前端工程化建设。' },
-  { period: '2015 — 2016', role: '前端工程师', company: '蛙族（北京）网络科技', note: '开启前端开发职业旅程，参与 B2C 产品交付。' },
-]
-const projects = [
-  { no: '01', title: '海狸洗衣', type: '微信小程序 · 独立开发', color: 'mint', tags: ['Vue', '小程序', '支付'] },
-  { no: '02', title: '海尔智家', type: '智能家居 App · 独立开发', color: 'blue', tags: ['App', 'BLE', 'IoT'] },
-  { no: '03', title: '毒物商店', type: 'B2C 电商后台 · 合作开发', color: 'orange', tags: ['Vue', '后台', '工程化'] },
-]
 </script>
 
 <template>
