@@ -1,59 +1,126 @@
-# 3D Resume · 三维交互式个人简历
+# 李萌 · 3D 交互式简历
 
-一个基于 Vue 3、Three.js 和 TresJS 的滚动式 3D 个人简历。人物场景固定在页面背景中，向下滚动时，人物会跟随章节改变位置、朝向和景别；简历与作品内容以独立的 HTML 页面层呈现。
-
-视觉参考来自 [sen-3d-resume](https://github.com/dayinji/sen-3d-resume)：借鉴固定 3D 场景与滚动叙事的结构，并按本项目的页面视频重新设计布局与配色。
-
-## 功能
-
-- 使用 `public/models/limeng.glb` 渲染个人 3D 形象；滚动章节驱动人物变换，鼠标位置带动人物轻微转向
-- 五个章节：关于我、个人介绍、工作履历、精选作品和联系我
-- 页面文案以简历文档为准：4 段工作经历、5 个项目、技能清单均来自简历原文，不虚构学校、年份与项目数量
-- 桌面与窄屏自适应排版，导航可平滑跳转到对应章节
-- GitHub Pages 部署路径配置为 `/Resume/`
-
-## 本地运行
+滚动驱动的单页 3D 简历：人物坐在蓝色瑜伽球上，滚轮滚动时镜头推近、人物转身一圈，履历、项目、联系方式依次出现。参考 Sen 的 [about.senbuzy.com](https://about.senbuzy.com/)，按李萌本人的简历文档重做。
 
 ```bash
 npm install
-npm run dev
+npm run dev      # 本地开发 http://localhost:5173/Resume/
+npm run build    # 构建到 dist/
+npm run preview  # 本地预览构建产物
 ```
 
-## 构建
+部署在 GitHub Pages：`https://aylimeng.github.io/Resume/`，`vite.config.js` 的 `base` 为 `/Resume/`。
 
-```bash
-npm run build
-npm run preview
-```
+## 技术栈
+
+| 依赖             | 版本         | 用途                                                                  |
+| ---------------- | ------------ | --------------------------------------------------------------------- |
+| Vue              | 3.5.44       | 应用框架（`<script setup>` + Composition API）                        |
+| Vite             | 8.3.6        | 构建工具，`@vitejs/plugin-vue` 6                                      |
+| Three.js         | 0.187        | 3D 渲染、`GLTFLoader` / `DRACOLoader`（`three/addons`）               |
+| @tresjs/core     | 5.12         | Vue 版 Three.js 封装：`TresCanvas`、`TresPerspectiveCamera`、灯光组件 |
+| @tresjs/cientos  | 5.12         | 已安装，当前代码未使用                                                |
+| Playfair Display | 自托管 woff2 | 标题衬线字体，`public/fonts/`，不依赖 Google Fonts                    |
+
+无路由、无状态库、无 CSS 框架。运行时只依赖 Vue + Three.js。
 
 ## 目录结构
 
 ```text
-public/models/limeng.glb      # 提供的 3D 人物模型（已缩小贴图）
-src/App.vue                   # 应用入口
-src/components/Resume3D.vue  # 3D 场景、滚动章节与响应式样式
+index.html                        # 入口：字体 @font-face、OG meta、theme-color
+vite.config.js                    # base: '/Resume/'（GitHub Pages 子路径）
+public/
+  models/limeng.glb               # 3D 人物模型（Draco 压缩，1.7 MB）
+  images/white-dog.webp           # 透明底白狗背景（104 KB）
+  fonts/playfair-400.woff2        # Playfair Display 400（38 KB，latin 子集）
+  fonts/playfair-400-italic.woff2 # Playfair Display 400 italic（22 KB）
+  preview.png                     # OG 分享图（v8 首页截图）
+src/
+  main.js                         # createApp(App).mount('#app')
+  App.vue                         # 只挂载 Resume3D
+  data/resume.js                  # 文案唯一来源：章节、4 段履历、5 个项目、7 组技能
+  components/Resume3D.vue         # 全部实现：3D 场景 + 4 个章节 + 全部样式（525 行）
 ```
 
-模型贴图从 4K 缩至 2K，以减小页面下载体积。模型未包含相机动画，因此页面使用滚动位置驱动人物的平移、缩放和朝向。
+`src/data/resume.js` 是文案的唯一来源，与用户提供的简历文档保持一致，不虚构学校、年份与项目数量。改文案只改这个文件。
 
-优化记录（2026-11-23）：删除了 `public/draco/` 的 752KB 解码器副本，Three.js r187 的 DRACOLoader 已自带打包进 bundle 的解码器；加载失败时可点“重新加载”重试；切到后台标签页时暂停逐帧插值。
+## 实现方式
 
-重构记录（2026-11-23 v2）：文案抽到 `src/data/resume.js` 单独维护；背景层加入白狗图（`public/images/white-dog.webp`，multiply 混合融入纸色背景，滚动视差）；滚动时相机推近 / 拉远、人物转身幅度加大、待机浮动；新增顶部滚动进度条、章节入场动画与技能跑马灯；详情文字整体放大（正文 10px→14px，注释 8px→12px），移动端同步放大。
+### 页面结构
 
-重构记录（2026-11-24 v4）：亮色重做 — 米白主题 + 亮橙强调色；白狗图居中 contain（multiply 融入米白底，四周留白）；履历去黑底，改纵向时间线、间距约 2 倍；Selected Works 改为 sticky 横向滚动区（竖向滚轮驱动横向平移，滚到底播完），卡片为磨砂面板（半透明白 + blur 16px），横向序列 7 张卡：履历卡、技能卡、5 个项目完整卡；单设的 Skills 章节并入 Works 区；移动端横向改竖排。文案仍以简历文档为准，项目补 period/description，技能补完整分组 skillDetails。
+单页 4 个章节（`sections`）：About（首页）→ Résumé（纵向时间线）→ 主要项目（横向滚动区）→ Say Hello（联系）。`App.vue` 只挂载 `Resume3D.vue`，3D 场景与全部章节、样式都在这一个组件里。
 
-## v5（2026-11-24）：黑色 TRUNK 风格
+### 3D 场景
 
-- 主题改全黑 `#121212`（取自参考图背景色），标题改 Playfair Display 白色衬线大写；字体文件自托管在 `public/fonts/`（woff2），不依赖 Google Fonts
-- 白狗换成透明底 webp（`public/images/white-dog.webp`，104KB，由黑底版 flood fill 去黑得到，无地面无噪点）；去掉 multiply 混合与滚动视差，狗滚动时固定不动
-- 删掉 Résumé 章节标题（时间线保留）与 Selected Works 标题 + SCROLL → 提示；横向轨道与卡片内容保留
-- 去掉磨砂：卡片透明无背景、无 backdrop-filter；去掉全部边框线（卡片、邮箱卡、加载卡）；时间线竖线与顶部进度条保留（不是边框）
-- 人狗前后比例按参考图：狗 58vh、左移 6vw、上移 4vh，人物 hero scale 0.72 → 0.88（约占视口 78%）
-- 去磨砂后卡片文字会压到白狗上：作品/联系章节时白狗淡到 15%（按视口中心所在章节判断，移动端竖排也覆盖），卡片文字加深色光晕；移动端标题缩小到 clamp(32px,10vw,52px) 防止溢出
+- `TresCanvas` 透明画布固定铺满视口，背景层是透明底白狗图（`public/images/white-dog.webp`），人物 GLB 坐在蓝色球上。
+- 相机：`TresPerspectiveCamera`，`fov: 35`，`cameraZ` 由滚动位置驱动（9.5 → 4.6 → 7.0 → 9.5）。
+- 灯光（`Resume3D.vue` 模板内声明）：环境光 `2.1`；主方向光 `(4, 7, 5)` 强度 `3.3`，开 `cast-shadow`；暖色补光 `(-5, 3, -3)` 强度 `1.45`；暖色点光 `(2, -0.2, 4)` 强度 `19`、`distance: 9`。模型开启投射与接收阴影。
+- 人物待机动画：`animateAvatar` 里按 `sin(now * 0.0011)` 做小幅上下浮动；鼠标移动时人物朝向微转（yaw ±0.3、pitch ±0.06）。
 
-## v6（2026-11-24）：全改浅绿 + 删横向履历卡 + 狗放大
+### 滚动驱动镜头（核心机制）
 
-- 横向 Works 区删掉履历卡（上面纵向时间线已完整展示），轨道从 7 张减到 6 张：技能卡 + 5 个项目卡；`measureWorks()` 自动重算，滚到底仍正好播完最后一张；纵向时间线与 `resume.js` 不动
-- 项目区恢复顶部标题「主要项目」（无 SCROLL → 提示），样式与其他标题一致；`works-sticky` 恢复 gap 34px，移动端标题 40px、竖排
-- 全改：全部文字（含原白 #f5f2ea / 灰 #cfcbc2 / 橙 #ff5c1a 强调）统一为 #e2ffc2，层级只靠字号/字重/斜体区分；全部线条（顶部进度条、时间线竖线与圆点、SCROLL 竖线、加载条）统一为 `rgb(197 210 183 / var(--tw-bg-opacity, 1))`（按用户给的写法原样）；标签 pill 与重试按钮同步改 sage 配色；橙色强调色彻底取消
-- 白狗 58vh → 64vh（上限 980px），位置不变（左移 6vw、上移 4vh）；狗淡出 15% 与文字深色光晕保留，履历时间线也补上光晕（#e2ffc2 比橙色更接近白色，压在白狗上更依赖光晕 + 淡出）
+4 个镜头关键帧（`poses`），按章节中心切换：
+
+| 章节      | x    | scale | yaw  | camZ | 效果                      |
+| --------- | ---- | ----- | ---- | ---- | ------------------------- |
+| About     | 0    | 0.88  | -0.1 | 9.5  | 人物居中正面              |
+| Résumé    | -1.7 | 0.9   | 1.5  | 4.6  | 推近到面部特写            |
+| 主要项目  | -1.9 | 0.85  | 3.1  | 7.0  | 转身约 180°，露出球后文字 |
+| Say Hello | -2.2 | 0.62  | 6.18 | 9.5  | 转满一圈回到正面          |
+
+`updateTargetPose()` 在每次滚动时执行：取视口中心（`scrollY + 52% 视口高`）最近的章节中心定当前章节，再在相邻两个关键帧之间用 smoothstep（`t*t*(3-2t)`）插值出目标位姿。`animateAvatar()` 用帧率无关的阻尼 `1 - exp(-dt * 3.2)` 向目标位姿靠拢（`dt` 钳制在 0.05 内），低帧率设备上也能在约 1.5 秒内转到位；切到后台标签页时暂停插值。
+
+移动端（≤720px）姿态系数：`x × 0.25`、`scale × 0.85`、`camZ + 1.2`；标题用 `clamp()` 缩放。
+
+### 横向 Works 区
+
+竖向滚轮驱动横向平移：`measureWorks()` 算出横向溢出量 `worksOverflow = track.scrollWidth - innerWidth`，把章节高度设为 `视口高 + worksOverflow`；滚动时按章节内的滚动进度把轨道 `translate3d(-progress * worksOverflow)`，滚到底正好播完最后一张卡片。轨道共 6 张：5 个项目卡 + 末尾 1 张技能卡。移动端取消 sticky，轨道改竖排。
+
+顶部有一条滚动进度条（`scrollY / (scrollHeight - innerHeight)`），章节内容用 `IntersectionObserver` 做入场动画。
+
+### 白狗淡出
+
+作品区与联系区的文字是浅色，压在白狗上会看不清：`updateTargetPose()` 按视口中心实际所在的章节判断，当前章节是 `projects` 或 `contact` 时白狗层 `opacity` 淡到 `0.15`（0.6s 过渡），其他章节恢复 `1`；卡片与时间线文字另有深色光晕（`text-shadow`）兜底。
+
+### 球后 HELLO WORLD
+
+不改 GLB，运行时在球后加字：`addBallText()` 用 Canvas 2D 逐字画 Playfair 粗体（等 `document.fonts.load` 字体就绪后再画，否则回退到 Georgia），每个字母生成 `CanvasTexture`，贴在 `0.56 × 0.56` 的 plane 上。10 个字母沿球后水平圆弧排布：球心约 `y = -1.2`、球半径约 `1.45`（实测），文字半径 `1.95`（约 0.5 间隙），步进 `8°`（跨度 80°），整体再右移 `8°`（球在画面左侧，避免首字母 H 出画）。字母挂在 `avatarRoot` 下，跟人物一起平移 / 缩放 / 转身；首页正面看不见，滚到作品区转身约 180° 后才可见。字母 `castShadow` + `alphaTest: 0.4` 镂空，前向主光源把字母形状的阴影投在球面上。
+
+### 加载与容错
+
+- `GLTFLoader` 的 `onProgress` 驱动加载进度条；加载失败显示重试按钮（`retryLoad()`）。
+- 模型加载成功后才挂 `avatarRoot` 并开始动画循环；卸载时遍历释放几何体、材质与贴图。
+- 字体：Playfair Display 以 woff2 自托管在 `public/fonts/`，无外部字体请求；页面无外部依赖，离线可开。
+
+## GLB 优化
+
+### 体积：48 MB → 1.7 MB
+
+- 用户电脑上的原始文件 `limeng.glb` 约 48 MB；当前 `public/models/limeng.glb` 是经 glTF-Transform + Draco 压缩的版本，**1.7 MB**。
+- 模型结构：1 个 mesh、1 个 material、3 张贴图（均为 1024×1024，无动画）：
+  - 底色贴图（base color，JPEG）
+  - 法线贴图（normal，PNG，780 KB）
+  - 粗糙度 / 金属度贴图（metallic-roughness，JPEG）
+- 解码器：`public/draco/` 下曾有一份 752 KB 的 Draco 解码器副本，已删除——Three.js r187 的 `DRACOLoader` 默认使用打包进 bundle 的解码器，不需要副本。删除后构建产物 `dist` 从 4.6 MB 降到 3.9 MB。
+
+### 材质去木纹（v8）
+
+问题：模型表面（皮肤、短裤、球）有一层像木头刻痕的细密纹路。三组对照实验证明根因：
+
+| 实验           | 结果     | 结论             |
+| -------------- | -------- | ---------------- |
+| 纯白无贴图材质 | 无纹路   | 排除几何本身     |
+| 去掉底色贴图   | 纹路还在 | 排除底色贴图     |
+| 去掉法线贴图   | 纹路还在 | 法线贴图不是主因 |
+
+真正原因是**粗糙度贴图的明暗起伏 + GLB 自带的 2 倍高光**（`KHR_materials_specular`，`specularColorFactor: [2, 2, 2]`），在强光（主光 3.3 + 点光 19）下被放大成木纹。修复在 `loadAvatar()` 的 traverse 里做，不改 GLB 文件：
+
+```js
+object.material.normalMap = null
+object.material.metallicRoughnessTexture = null
+object.material.roughness = 0.9
+object.material.metalness = 0
+object.material.specularIntensity = 0
+```
+
+修复后皮肤与短裤恢复平滑。残留：球面还有极淡的同心弧线，是底色渐变在 8-bit 下的色带（color banding），不是木纹，属球体自身质感；彻底消除需离线给底色贴图加噪点抖动并重建 GLB，未做。

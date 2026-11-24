@@ -170,7 +170,16 @@ function loadAvatar() {
         if (object.isMesh) {
           object.castShadow = true
           object.receiveShadow = true
-          if (object.material) object.material.needsUpdate = true
+          if (object.material) {
+            // 去木纹: 法线贴图的细密划痕 + 粗糙度贴图的明暗起伏, 在强光与 2 倍高光下被放大成木纹;
+            // 实测三者都去掉后皮肤与球面恢复平滑, 故禁用法线贴图、改用统一粗糙度 0.9、关掉高光
+            object.material.normalMap = null
+            object.material.metallicRoughnessTexture = null
+            object.material.roughness = 0.9
+            object.material.metalness = 0
+            object.material.specularIntensity = 0
+            object.material.needsUpdate = true
+          }
         }
       })
 
@@ -180,6 +189,7 @@ function loadAvatar() {
       avatarRoot.position.set(targetPose.x, targetPose.y, 0)
       avatarRoot.scale.setScalar(targetPose.scale)
       avatar.value = avatarRoot
+      addBallText(avatarRoot)
       loading.value = false
       updateTargetPose()
     },
@@ -193,8 +203,61 @@ function loadAvatar() {
   )
 }
 
-function retryLoad() {
-  loadError.value = false
+// 球后弧形文字: "HELLO WORLD" 白色大写, 挂在球体背面, 与球面留约 0.5 间隙,
+// 每个字母沿水平圆弧排布、法线朝外, 与球面平行; 只有人物转身到背面(作品区 yaw≈3.1)时才可见。
+// 字母投阴影靠前向主光源(已开 cast-shadow)+ alphaTest 镂空, 阴影落在球面上。
+const BALL_TEXT = 'HELLO WORLD'
+const BALL_CENTER_Y = -1.2 // 实测: 球直径约 511px、球心约 y=-1.2、球半径约 1.45(局部坐标)
+const BALL_TEXT_RADIUS = 1.95 // 球半径 + 约 0.5 间隙, 保证字母整体在球面之外
+
+function createLetterTexture(char) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.font = '700 190px "Playfair Display", Georgia, serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(char, 128, 134)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 4
+  return texture
+}
+
+function addBallText(root) {
+  const build = () => {
+    const letters = [...BALL_TEXT]
+    const step = THREE.MathUtils.degToRad(8) // 跨度 110°→80°, 整词收进球后正中可见窗口, 两端字母不再被球面遮挡
+    letters.forEach((char, index) => {
+      if (char === ' ') return
+      const texture = createLetterTexture(char)
+      if (!texture) return
+      // alphaTest 让阴影按字母形状镂空, 而不是整块矩形
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.4 })
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.56), material)
+      const theta = ((letters.length - 1) / 2 - index) * step - THREE.MathUtils.degToRad(8) // 首字母在后视者左侧, 转过来后正读; 整体再右移 8°, 因球在画面左侧, 避免首字母 H 出画
+      mesh.position.set(
+        BALL_TEXT_RADIUS * Math.sin(theta),
+        BALL_CENTER_Y,
+        -BALL_TEXT_RADIUS * Math.cos(theta),
+      )
+      mesh.rotation.y = Math.PI - theta
+      mesh.castShadow = true
+      root.add(mesh)
+    })
+  }
+  // 等 Playfair 字体就绪再画, 否则 canvas 会回退到 Georgia
+  if (document.fonts?.load) {
+    document.fonts.load('700 190px "Playfair Display"').catch(() => {}).finally(build)
+  } else {
+    build()
+  }
+}
+
+function retryLoad() {  loadError.value = false
   loading.value = true
   loadProgress.value = 0
   loadAvatar()
@@ -319,6 +382,13 @@ onBeforeUnmount(() => {
         <div class="works-sticky">
           <div class="works-head reveal"><h2>主要项目</h2></div>
           <div ref="worksTrack" class="works-track">
+            <article v-for="project in projects" :key="project.no" class="work-card project-card reveal">
+              <span class="card-kicker">{{ project.no }} / 05</span>
+              <h3>{{ project.title }}</h3>
+              <p class="project-meta">{{ project.type }} · {{ project.period }}</p>
+              <p class="project-desc">{{ project.description }}</p>
+              <div class="project-tags"><span v-for="tag in project.tags" :key="tag">{{ tag }}</span></div>
+            </article>
             <article class="work-card skills-card reveal">
               <span class="card-kicker">SKILLS</span>
               <h3>专业技能</h3>
@@ -327,13 +397,6 @@ onBeforeUnmount(() => {
                   <strong>{{ skill.name }}</strong><p>{{ skill.detail }}</p>
                 </div>
               </div>
-            </article>
-            <article v-for="project in projects" :key="project.no" class="work-card project-card reveal">
-              <span class="card-kicker">{{ project.no }} / 05</span>
-              <h3>{{ project.title }}</h3>
-              <p class="project-meta">{{ project.type }} · {{ project.period }}</p>
-              <p class="project-desc">{{ project.description }}</p>
-              <div class="project-tags"><span v-for="tag in project.tags" :key="tag">{{ tag }}</span></div>
             </article>
           </div>
         </div>
@@ -377,8 +440,8 @@ onBeforeUnmount(() => {
 /* 首页: 人物居中, 标题压在人物下方 */
 .hero-section { align-items: flex-end; justify-content: center; padding-bottom: 9vh; }
 .hero-copy { width: min(860px,94vw); text-align: center; }
-.hero-copy h1 { margin: 0; color: #e2ffc2; font: 400 clamp(56px,9vw,124px)/1 "Playfair Display",Didot,"Bodoni MT",Georgia,"Times New Roman",serif; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
-.hero-copy h1 em { color: #e2ffc2; font-weight: 400; }
+.hero-copy h1 { position: relative; left: 50%; transform: translateX(-50%); width: max-content; max-width: none; margin: 0; color: #ffffff; font: 400 clamp(56px,9vw,124px)/1 "Playfair Display",Didot,"Bodoni MT",Georgia,"Times New Roman",serif; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.hero-copy h1 em { color: #ffffff; font-weight: 400; }
 .hero-intro { max-width: 620px; margin: 22px auto 0; color: #e2ffc2; font-size: 15px; line-height: 1.9; }
 .hero-stats { display: flex; justify-content: center; gap: 34px; width: fit-content; margin: 34px auto 0; }
 .hero-stats div { display: grid; gap: 6px; }
@@ -426,10 +489,10 @@ onBeforeUnmount(() => {
 
 .contact-section { justify-content: center; }
 .contact-copy { width: min(680px,94vw); text-align: center; }
-.contact-copy h2 { margin: 0; color: #e2ffc2; font: 400 clamp(56px,8vw,104px)/1.05 "Playfair Display",Georgia,serif; letter-spacing: .02em; text-transform: uppercase; }
-.contact-copy h2 em { color: #e2ffc2; font-weight: 400; }
+.contact-copy h2 { margin: 0; color: #ffffff; font: 400 clamp(56px,8vw,104px)/1.05 "Playfair Display",Georgia,serif; letter-spacing: .02em; text-transform: uppercase; }
+.contact-copy h2 em { color: #ffffff; font-weight: 400; }
 .section-body { max-width: 480px; margin: 20px auto 0; color: #e2ffc2; font-size: 14px; line-height: 1.9; }
-.email-card { position: relative; display: grid; gap: 8px; width: min(430px,100%); margin: 32px auto 0; padding: 18px 20px; color: #e2ffc2; text-decoration: none; background: transparent; text-align: left; transition: background .2s; }
+.email-card { position: relative; display: grid; gap: 8px; width: min(430px,100%); margin: 32px auto 0; padding: 18px 20px; color: #e2ffc2; text-decoration: none; background: transparent; text-align: center; transition: background .2s; }
 .email-card:hover { background: rgba(255,255,255,.06); }
 .email-card span { color: #e2ffc2; font-size: 11px; letter-spacing: .14em; }
 .email-card strong { font: 20px "Playfair Display",Georgia,serif; font-weight: 400; }
